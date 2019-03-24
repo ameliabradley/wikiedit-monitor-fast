@@ -123,7 +123,7 @@ func (m MessageParser) Parse(msg *sse.Event) {
 	err := json.Unmarshal(msg.Data, &rc)
 	if err != nil {
 		data := string(msg.Data[:])
-		m.logger.Printf("There was an error decoding: %s\n", data)
+		m.logger.Printf("There was an error decoding: %s", data)
 		return
 	}
 

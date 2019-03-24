@@ -61,18 +61,18 @@ func (mc RevisionFetch) fetch(revision int) ([]byte, error) {
 	start := time.Now()
 	resp, err := mc.client.Get(url)
 	if err != nil {
-		fmt.Println("error querying: %+v", err)
+		mc.logger.Printf("error querying: %+v", err)
 		return nil, err
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("error reading body: %+v", err)
+		mc.logger.Printf("error reading body: %+v", err)
 		return nil, err
 	}
 	diff := time.Now().Sub(start)
-	mc.logger.Printf("Revision fetched in %s\n", diff.String())
+	mc.logger.Printf("Revision fetched in %s", diff.String())
 
 	// fmt.Println(string(body))
 	return body, nil

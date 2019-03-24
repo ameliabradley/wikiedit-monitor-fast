@@ -41,7 +41,7 @@ func (m RecentChangeHandler) Handle(rc RecentChange) {
 
 func (m RecentChangeHandler) handleFetchResponse(queryResult []byte, err error) {
 	if err != nil {
-		m.logger.Println("Fetcher received error: %+v", err)
+		m.logger.Printf("Fetcher received error: %+v", err)
 		return
 	}
 
