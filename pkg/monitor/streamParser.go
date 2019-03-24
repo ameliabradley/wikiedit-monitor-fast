@@ -101,21 +101,34 @@ type RecentChange struct {
 
 const LogActionDelete = "delete"
 
-func CreateMessageParser(handler MessageHandler, logger *log.Logger) func(msg *sse.Event) {
-	return func(msg *sse.Event) {
-		if len(msg.Data) == 0 {
-			return
-		}
+type MessageParser struct {
+	handler MessageHandler
+	logger  *log.Logger
+}
 
-		// Got some data!
-		rc := RecentChange{}
-		err := json.Unmarshal(msg.Data, &rc)
-		if err != nil {
-			data := string(msg.Data[:])
-			logger.Printf("There was an error decoding: %s\n", data)
-			return
-		}
+func NewMessageParser(handler MessageHandler, logger *log.Logger) MessageParser {
+	return MessageParser{
+		handler: handler,
+		logger:  logger,
+	}
+}
 
-		handler(rc)
+func (m MessageParser) Parse(msg *sse.Event) {
+	if len(msg.Data) == 0 {
+		return
+	}
+
+	// Got some data!
+	rc := RecentChange{}
+	err := json.Unmarshal(msg.Data, &rc)
+	if err != nil {
+		data := string(msg.Data[:])
+		m.logger.Printf("There was an error decoding: %s\n", data)
+		return
+	}
+
+	// logger.Println(rc.Wiki)
+	if rc.Wiki == "enwiki" {
+		m.handler(rc)
 	}
 }

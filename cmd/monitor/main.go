@@ -22,10 +22,10 @@ func main() {
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 	fetcher := monitor.NewRevisionFetcher(logger)
 	handler := monitor.NewRecentChangeHandler(fetcher, logger)
-	parser := monitor.CreateMessageParser(handler.Handle, logger)
+	parser := monitor.NewMessageParser(handler.Handle, logger)
 	url := "https://stream.wikimedia.org/v2/stream/recentchange?hidebots=1"
 	client := sse.NewClient(url)
-	go client.Subscribe("messages", parser)
+	go client.Subscribe("messages", parser.Parse)
 	done := make(chan struct{})
 
 	for {

@@ -9,6 +9,7 @@ type RecentChangeHandler struct {
 	changesQueue []RecentChange
 	logger       *log.Logger
 	fetcher      RevisionFetcher
+	parser       RevisionParser
 }
 
 // NewRecentChangeHandler creates a handler for recent changes
@@ -16,6 +17,7 @@ func NewRecentChangeHandler(fetcher RevisionFetcher, logger *log.Logger) RecentC
 	return RecentChangeHandler{
 		fetcher: fetcher,
 		logger:  logger,
+		parser:  NewRevisionParser(logger),
 	}
 }
 
@@ -37,14 +39,20 @@ func (m RecentChangeHandler) Handle(rc RecentChange) {
 	m.fetcher.Queue(new, m.handleFetchResponse)
 }
 
-func (m RecentChangeHandler) handleFetchResponse(body []byte, err error) {
+func (m RecentChangeHandler) handleFetchResponse(queryResult []byte, err error) {
 	if err != nil {
 		m.logger.Println("Fetcher received error: %+v", err)
 		return
 	}
 
 	m.logger.Println("handleFetchResponse success")
-	// m.logger.Println(string(body))
+	compare, err := m.parser.Parse(queryResult)
+	if err != nil {
+		m.logger.Printf("Encountered parsing error: %+v; body: %s", err, string(queryResult))
+		return
+	}
+
+	m.logger.Printf("Body: %s", compare.Body)
 }
 
 // RemovePageRevisionsFromQueue removes the given page revisions from the queue

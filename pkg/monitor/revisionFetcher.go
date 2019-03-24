@@ -30,12 +30,13 @@ type RevisionFetch struct {
 const baseUrl = "https://en.wikipedia.org/w/api.php?action=compare&format=json&fromrev=%d&torelative=prev"
 
 func NewRevisionFetcher(logger *log.Logger) RevisionFetch {
-	mc := RevisionFetch{}
-	mc.logger = logger
-	mc.client = http.Client{
-		Timeout: time.Second * 10,
+	mc := RevisionFetch{
+		logger: logger,
+		client: http.Client{
+			Timeout: time.Second * 10,
+		},
+		queue: make(chan fetchRequest, 100),
 	}
-	mc.queue = make(chan fetchRequest, 100)
 	go func() {
 		for {
 			queue := <-mc.queue
@@ -55,8 +56,6 @@ func (mc RevisionFetch) Queue(revision int, cb HandleFetchResponse) {
 }
 
 func (mc RevisionFetch) fetch(revision int) ([]byte, error) {
-	// time.Sleep(5 * time.Second)
-	// param := strconv.Itoa(revisions[0])
 	url := fmt.Sprintf(baseUrl, revision)
 	mc.logger.Printf("Fetching revision: %s\n", url)
 	start := time.Now()
