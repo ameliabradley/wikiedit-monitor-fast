@@ -1,13 +1,4 @@
-package monitor
-
-import (
-	"encoding/json"
-	"log"
-
-	"github.com/r3labs/sse"
-)
-
-type MessageHandler func(rc RecentChange)
+package recentchanges
 
 type RecentChange struct {
 	Meta struct {
@@ -100,35 +91,3 @@ type RecentChange struct {
 }
 
 const LogActionDelete = "delete"
-
-type MessageParser struct {
-	handler MessageHandler
-	logger  *log.Logger
-}
-
-func NewMessageParser(handler MessageHandler, logger *log.Logger) MessageParser {
-	return MessageParser{
-		handler: handler,
-		logger:  logger,
-	}
-}
-
-func (m MessageParser) Parse(msg *sse.Event) {
-	if len(msg.Data) == 0 {
-		return
-	}
-
-	// Got some data!
-	rc := RecentChange{}
-	err := json.Unmarshal(msg.Data, &rc)
-	if err != nil {
-		data := string(msg.Data[:])
-		m.logger.Printf("There was an error decoding: %s", data)
-		return
-	}
-
-	// logger.Println(rc.Wiki)
-	if rc.Wiki == "enwiki" {
-		m.handler(rc)
-	}
-}

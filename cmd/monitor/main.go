@@ -7,7 +7,9 @@ import (
 	"os/signal"
 
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/monitor"
-	"github.com/r3labs/sse"
+	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/diffs"
+	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges"
+	"github.com/sirupsen/logrus"
 )
 
 var addr = flag.String("addr", "stream.wikimedia.org", "http service address")
@@ -19,13 +21,23 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	logger := log.New(os.Stdout, "", log.LstdFlags)
-	fetcher := monitor.NewRevisionFetcher(logger)
-	handler := monitor.NewRecentChangeHandler(fetcher, logger)
-	parser := monitor.NewMessageParser(handler.Handle, logger)
-	url := "https://stream.wikimedia.org/v2/stream/recentchange?hidebots=1"
-	client := sse.NewClient(url)
-	go client.Subscribe("messages", parser.Parse)
+	// logger := log.New(os.Stdout, "", log.LstdFlags)
+
+	logger := logrus.New()
+
+	diffParser := diffs.NewDiffParser(logger)
+	diffFetcher := diffs.NewDiffFetcher(logger)
+	diffQueuer := diffs.NewDiffQueuer(logger, diffFetcher)
+
+	streamListener := recentchanges.NewStreamListener(logger)
+	archiver := monitor.NewFileArchiver(logger, "archive")
+
+	m := monitor.NewMonitor(streamListener, diffQueuer, diffParser, archiver, logger)
+	m.Start(recentchanges.ListenOptions{
+		Wikis:    []string{"enwiki"},
+		Hidebots: true,
+	})
+
 	done := make(chan struct{})
 
 	for {

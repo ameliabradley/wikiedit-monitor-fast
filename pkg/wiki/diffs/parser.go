@@ -1,9 +1,10 @@
-package monitor
+package diffs
 
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Compare struct {
@@ -22,20 +23,20 @@ type CompareResult struct {
 	Compare Compare `json:"compare"`
 }
 
-type RevisionParser struct {
-	logger *log.Logger
+type DiffParser struct {
+	logger *logrus.Logger
 }
 
-func NewRevisionParser(logger *log.Logger) RevisionParser {
-	return RevisionParser{logger: logger}
+func NewDiffParser(logger *logrus.Logger) DiffParser {
+	return DiffParser{logger: logger}
 }
 
-func (r RevisionParser) Parse(input []byte) (Compare, error) {
+func (r DiffParser) Parse(input []byte) (Compare, error) {
 	result := CompareResult{}
 	err := json.Unmarshal(input, &result)
 	if err != nil {
 		data := string(input[:])
-		err := fmt.Errorf("There was an error decoding: %s\n", data)
+		err := fmt.Errorf("There was an error decoding: %s", data)
 		return Compare{}, err
 	}
 	return result.Compare, nil
