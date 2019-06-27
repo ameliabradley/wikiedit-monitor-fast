@@ -1,4 +1,4 @@
-package diffs
+package diffs_test
 
 import (
 	"bytes"
@@ -6,15 +6,16 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/diffs"
 	"github.com/sirupsen/logrus/hooks/test"
 )
 
-type in struct {
+type inFetcher struct {
 	revision int
 	body     string
 }
 
-type want struct {
+type wantFetcher struct {
 	url  string
 	body string
 	err  error
@@ -22,16 +23,16 @@ type want struct {
 
 var fetcherTests = []struct {
 	name string
-	in   in
-	want want
+	in   inFetcher
+	want wantFetcher
 }{
 	{
 		name: "basic",
-		in: in{
+		in: inFetcher{
 			revision: 100,
 			body:     "foo",
 		},
-		want: want{
+		want: wantFetcher{
 			url:  "https://en.wikipedia.org/w/api.php?action=compare&format=json&fromrev=100&torelative=prev",
 			body: "foo",
 			err:  nil,
@@ -73,7 +74,7 @@ func TestDiffFetcher(t *testing.T) {
 			})
 
 			logger, _ := test.NewNullLogger()
-			fetcher := NewDiffFetcher(logger, *client)
+			fetcher := diffs.NewDiffFetcher(logger, *client)
 			body, err := fetcher.Fetch(tt.in.revision)
 			if err != tt.want.err {
 				t.Errorf("got %q, want %q", err, tt.want.err)

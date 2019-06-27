@@ -1,4 +1,4 @@
-# wikiedit-monitor-fast
+# wikiedit-monitor-fast [![Build Status](https://travis-ci.com/leebradley/wikiedit-monitor-fast.svg?branch=master)](https://travis-ci.com/leebradley/wikiedit-monitor-fast)
 
 This is an experiment at writing a faster and more reliable version of the [wikiedit-monitor](https://github.com/leebradley/wikiedit-monitor) project.
 

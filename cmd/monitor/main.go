@@ -23,8 +23,6 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	// logger := log.New(os.Stdout, "", log.LstdFlags)
-
 	logger := logrus.New()
 	httpClient := http.Client{
 		Timeout: time.Second * 10,
