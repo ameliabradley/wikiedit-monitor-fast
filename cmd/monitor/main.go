@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/monitor"
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/diffs"
@@ -24,9 +26,12 @@ func main() {
 	// logger := log.New(os.Stdout, "", log.LstdFlags)
 
 	logger := logrus.New()
+	httpClient := http.Client{
+		Timeout: time.Second * 10,
+	}
 
 	diffParser := diffs.NewDiffParser(logger)
-	diffFetcher := diffs.NewDiffFetcher(logger)
+	diffFetcher := diffs.NewDiffFetcher(logger, httpClient)
 	diffQueuer := diffs.NewDiffQueuer(logger, diffFetcher)
 
 	streamListener := recentchanges.NewStreamListener(logger)

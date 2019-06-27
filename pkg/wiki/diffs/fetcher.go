@@ -20,12 +20,10 @@ type DiffFetcher interface {
 
 const baseUrl = "https://en.wikipedia.org/w/api.php?action=compare&format=json&fromrev=%d&torelative=prev"
 
-func NewDiffFetcher(logger *logrus.Logger) DiffFetcher {
+func NewDiffFetcher(logger *logrus.Logger, client http.Client) DiffFetcher {
 	mc := DiffFetch{
 		logger: logger,
-		client: http.Client{
-			Timeout: time.Second * 10,
-		},
+		client: client,
 	}
 	return mc
 }
@@ -54,6 +52,5 @@ func (mc DiffFetch) Fetch(revision int) ([]byte, error) {
 		"bytes": len(body),
 	}).Info("Revision fetched")
 
-	// fmt.Println(string(body))
 	return body, nil
 }
