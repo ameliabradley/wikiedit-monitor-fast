@@ -1,5 +1,6 @@
 package recentchanges
 
+// RecentChange represents a recent change on wikipedia
 type RecentChange struct {
 	Meta struct {
 		//   required:
@@ -90,4 +91,5 @@ type RecentChange struct {
 	LogActionComment *string `json:"log_action_comment"`
 }
 
+// LogActionDelete is the constant returned by wikipedia for the delete action
 const LogActionDelete = "delete"

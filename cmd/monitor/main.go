@@ -14,8 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var addr = flag.String("addr", "stream.wikimedia.org", "http service address")
-
 func main() {
 	flag.Parse()
 	log.SetFlags(0)
@@ -24,6 +22,8 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt)
 
 	logger := logrus.New()
+	logger.Info("Starting monitor")
+
 	httpClient := http.Client{
 		Timeout: time.Second * 10,
 	}
@@ -32,13 +32,13 @@ func main() {
 	diffFetcher := diffs.NewDiffFetcher(logger, httpClient)
 	diffQueuer := diffs.NewDiffQueuer(logger, diffFetcher)
 
-	streamListener := recentchanges.NewStreamListener(logger)
+	client := recentchanges.NewSSE(true)
+	streamListener := recentchanges.NewStreamListener(client, logger)
 	archiver := monitor.NewFileArchiver(logger, "archive")
 
 	m := monitor.NewMonitor(streamListener, diffQueuer, diffParser, archiver, logger)
 	m.Start(recentchanges.ListenOptions{
-		Wikis:    []string{"enwiki"},
-		Hidebots: true,
+		Wikis: []string{"enwiki"},
 	})
 
 	done := make(chan struct{})

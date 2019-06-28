@@ -11,14 +11,14 @@ type QueueRevision = func(revision int)
 // Monitor handles recent changes as they arrive
 type Monitor struct {
 	logger     *logrus.Logger
-	stream     recentchanges.StreamListener
+	stream     recentchanges.Listener
 	diffQueuer diffs.DiffQueuer
 	diffParser diffs.DiffParser
 	archiver   Archiver
 }
 
 // NewMonitor creates a handler for recent changes
-func NewMonitor(stream recentchanges.StreamListener, diffQueuer diffs.DiffQueuer, diffParser diffs.DiffParser, archiver Archiver, logger *logrus.Logger) Monitor {
+func NewMonitor(stream recentchanges.Listener, diffQueuer diffs.DiffQueuer, diffParser diffs.DiffParser, archiver Archiver, logger *logrus.Logger) Monitor {
 	return Monitor{
 		logger:     logger,
 		stream:     stream,

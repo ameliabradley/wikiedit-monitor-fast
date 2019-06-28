@@ -7,26 +7,34 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Archiver archives the given revision to a folder
 type Archiver interface {
 	Archive(revision int, diff []byte)
 }
 
-type FileArchive struct {
+// fileArchive is an implementation of Archiver
+type fileArchive struct {
 	folder string
 	logger *logrus.Logger
 }
 
+// NewFileArchiver creates a new instance of an Archiver
 func NewFileArchiver(logger *logrus.Logger, folder string) Archiver {
-	return FileArchive{
+	return fileArchive{
 		folder: folder,
 		logger: logger,
 	}
 }
 
-func (a FileArchive) Archive(revision int, diff []byte) {
+// Archives archives the given revision to a folder
+func (a fileArchive) Archive(revision int, diff []byte) {
 	path := a.folder + "/" + strconv.Itoa(revision)
 	a.logger.WithFields(logrus.Fields{
 		"file": path,
 	}).Info("Archiving revision")
-	ioutil.WriteFile(path, diff, 0644)
+
+	err := ioutil.WriteFile(path, diff, 0644)
+	if err != nil {
+		a.logger.WithError(err).Error("Could not write file")
+	}
 }
