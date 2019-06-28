@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki"
+
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/monitor"
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/diffs"
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges"
@@ -32,13 +34,14 @@ func main() {
 	diffFetcher := diffs.NewDiffFetcher(logger, httpClient)
 	diffQueuer := diffs.NewDiffQueuer(logger, diffFetcher)
 
-	client := recentchanges.NewSSE(true)
+	client := wiki.NewSSEClient()
 	streamListener := recentchanges.NewStreamListener(client, logger)
 	archiver := monitor.NewFileArchiver(logger, "archive")
 
 	m := monitor.NewMonitor(streamListener, diffQueuer, diffParser, archiver, logger)
 	m.Start(recentchanges.ListenOptions{
-		Wikis: []string{"enwiki"},
+		Hidebots: true,
+		Wikis:    []string{"enwiki"},
 	})
 
 	done := make(chan struct{})

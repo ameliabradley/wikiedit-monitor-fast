@@ -2,16 +2,26 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
+	"sync"
+	"time"
 
+	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki"
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges"
+
 	"github.com/r3labs/sse"
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
+	var (
+		max int
+	)
+	flag.IntVar(&max, "max", 0, "The number of samples to gather")
 	flag.Parse()
 	log.SetFlags(0)
 
@@ -19,30 +29,58 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt)
 
 	logger := logrus.New()
-	logger.Info("Starting rcPopuluateData")
+	logger.WithFields(logrus.Fields{
+		"max": max,
+	}).Info("Starting rcPopuluateData")
 
-	// folder := "../../pkg/recentchanges/testdata"
+	folder := "../../pkg/wiki/recentchanges/testdata"
 
-	client := recentchanges.NewSSE(true)
+	client := wiki.NewSSEClient()
 	logger.Info("Subscribing to messages")
-	go client.Subscribe("messages", func(msg *sse.Event) {
-		logger.WithFields(logrus.Fields{
-			"data": msg.Data,
-		}).Info(msg.Data)
-
-		// ts := time.Now().Unix()
-
-		// path := folder + "/" + strconv.FormatInt(ts, 10)
-		// logger.WithFields(logrus.Fields{
-		// 	"file": path,
-		// }).Info("Archiving stream as test data")
-		// err := ioutil.WriteFile(path, msg.Data, 0644)
-		// if err != nil {
-		// 	logger.WithError(err).Error("Could not write file")
-		// }
-	})
+	fullURL := recentchanges.WikiSSEServer + recentchanges.WikiSSEPath
 
 	done := make(chan struct{})
+
+	gathered := 0
+	var mux sync.Mutex
+	go client.Subscribe(fullURL, func(msg *sse.Event) {
+		logger.WithFields(logrus.Fields{
+			"data": string(msg.Data),
+		}).Info("Received data")
+
+		if len(msg.Data) == 0 {
+			logger.Info("Empty data: Discarding")
+			return
+		}
+
+		ts := time.Now().UnixNano()
+
+		path := folder + "/" + strconv.FormatInt(ts, 10) + ".json"
+		if fileExists(path) {
+			logger.WithFields(logrus.Fields{
+				"file": path,
+			}).Error("Skipping archiving: File exists")
+			return
+		}
+
+		logger.WithFields(logrus.Fields{
+			"file": path,
+		}).Info("Archiving stream as test data")
+		err := ioutil.WriteFile(path, msg.Data, 0644)
+		if err != nil {
+			logger.WithError(err).Error("Could not write file")
+		}
+
+		mux.Lock()
+		defer mux.Unlock()
+		gathered++
+		if gathered >= max {
+			logger.WithFields(logrus.Fields{
+				"max": max,
+			}).Info("Gathered maximum stream items")
+			done <- struct{}{}
+		}
+	})
 
 	for {
 		select {
@@ -53,4 +91,9 @@ func main() {
 			return
 		}
 	}
+}
+
+func fileExists(name string) bool {
+	_, err := os.Stat(name)
+	return !os.IsNotExist(err)
 }

@@ -16,7 +16,9 @@ type inListener struct {
 }
 
 type wantListener struct {
-	rc recentchanges.RecentChange
+	url string
+	rc  recentchanges.RecentChange
+	err error
 }
 
 var parserTests = []struct {
@@ -27,12 +29,22 @@ var parserTests = []struct {
 	{
 		name: "basic",
 		in: inListener{
-			data: `{"compare":{"fromid":31530695,"fromrevid":903665607,"fromns":2,"fromtitle":"User:DeltaQuad/UAA/Time","toid":31530695,"torevid":903668373,"tons":2,"totitle":"User:DeltaQuad/UAA/Time","*":"test"}}`,
+			data: `{"bad":"data"}`,
+			lo: recentchanges.ListenOptions{
+				Hidebots: true,
+			},
 		},
 		want: wantListener{
-			rc: recentchanges.RecentChange{},
+			url: "https://stream.wikimedia.org/v2/stream/recentchange?hidebots=1",
+			rc:  recentchanges.RecentChange{},
+			err: nil,
 		},
 	},
+}
+
+type listenInput struct {
+	rc  recentchanges.RecentChange
+	err error
 }
 
 func TestListener(t *testing.T) {
@@ -41,11 +53,27 @@ func TestListener(t *testing.T) {
 			logger, _ := test.NewNullLogger()
 			client := NewFakeSSEClient(tt.in.data, tt.in.err)
 			listener := recentchanges.NewStreamListener(client, logger)
-			listener.Listen(tt.in.lo, func(rc recentchanges.RecentChange) {
-				if rc != tt.want.rc {
-					t.Errorf("got %+v, want %+v", rc, tt.want.rc)
+
+			in := make(chan listenInput)
+			listener.Listen(tt.in.lo, func(rc recentchanges.RecentChange, err error) {
+				in <- listenInput{
+					rc:  rc,
+					err: err,
 				}
 			})
+			received := <-in
+
+			if received.rc != tt.want.rc {
+				t.Errorf("got %+v, want %+v", received.rc, tt.want.rc)
+			}
+
+			if received.err != tt.want.err {
+				t.Errorf("got %+v, want %+v", received.err, tt.want.err)
+			}
+
+			if client.url != tt.want.url {
+				t.Errorf("got %q, want %q", client.url, tt.want.url)
+			}
 		})
 	}
 }
@@ -53,6 +81,7 @@ func TestListener(t *testing.T) {
 type FakeSSEClient struct {
 	data string
 	err  error
+	url  string
 }
 
 func NewFakeSSEClient(data string, err error) *FakeSSEClient {
@@ -62,7 +91,9 @@ func NewFakeSSEClient(data string, err error) *FakeSSEClient {
 	}
 }
 
-func (client *FakeSSEClient) Subscribe(stream string, handler func(msg *sse.Event)) error {
+func (client *FakeSSEClient) Subscribe(url string, handler func(msg *sse.Event)) error {
+	client.url = url
+
 	if client.data != "" {
 		handler(&sse.Event{
 			Data: []byte(client.data),

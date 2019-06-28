@@ -32,9 +32,12 @@ func (m Monitor) Start(o recentchanges.ListenOptions) {
 	m.stream.Listen(o, m.handleRecentChange)
 }
 
-func (m Monitor) handleRecentChange(rc recentchanges.RecentChange) {
+func (m Monitor) handleRecentChange(rc recentchanges.RecentChange, err error) {
 	// s, _ := json.MarshalIndent(rc, "", "\t")
 	// m.logger.Println(string(s))
+	if err != nil {
+		return
+	}
 
 	if rc.LogAction == recentchanges.LogActionDelete {
 		m.logger.Info("Recent change action delete noted")
