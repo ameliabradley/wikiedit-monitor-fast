@@ -1,4 +1,4 @@
-package recentchanges
+package sse
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki"
+	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges"
 	"github.com/r3labs/sse"
 	"github.com/sirupsen/logrus"
 )
@@ -15,18 +16,12 @@ const WikiSSEPath = "/v2/stream/recentchange"
 
 // Listener listens to recent changes
 type Listener interface {
-	Listen(lo ListenOptions, handler Handler)
+	Listen(lo recentchanges.ListenOptions, handler Handler)
 }
 
 type streamListener struct {
 	logger *logrus.Logger
 	client wiki.SSEClient
-}
-
-// ListenOptions are options for what to listen to
-type ListenOptions struct {
-	Hidebots bool
-	Wikis    []string
 }
 
 // Handler handles recent changes coming from a stream
@@ -41,7 +36,7 @@ func NewStreamListener(client wiki.SSEClient, logger *logrus.Logger) Listener {
 }
 
 // Listen to the given wikis, with the given handler
-func (sl *streamListener) Listen(lo ListenOptions, handler Handler) {
+func (sl *streamListener) Listen(lo recentchanges.ListenOptions, handler Handler) {
 	url := getURLFromOptions(lo)
 	go sl.client.Subscribe(url, func(event *sse.Event) {
 		rc, err := sl.handleMessage(lo.Wikis, event.Data, handler)
@@ -49,7 +44,7 @@ func (sl *streamListener) Listen(lo ListenOptions, handler Handler) {
 	})
 }
 
-func getURLFromOptions(lo ListenOptions) string {
+func getURLFromOptions(lo recentchanges.ListenOptions) string {
 	url, err := url.Parse(WikiSSEServer + WikiSSEPath)
 	if err != nil {
 		log.Fatal("Could not instantiate stream listener: Parse error")

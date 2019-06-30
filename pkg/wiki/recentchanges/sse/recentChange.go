@@ -1,4 +1,4 @@
-package recentchanges
+package sse
 
 // RecentChange represents a recent change on wikipedia
 type RecentChange struct {

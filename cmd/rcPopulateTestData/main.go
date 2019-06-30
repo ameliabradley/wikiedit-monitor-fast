@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki"
-	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges"
+	wikisse "github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges/sse"
 
 	"github.com/r3labs/sse"
 	"github.com/sirupsen/logrus"
@@ -37,7 +37,7 @@ func main() {
 
 	client := wiki.NewSSEClient()
 	logger.Info("Subscribing to messages")
-	fullURL := recentchanges.WikiSSEServer + recentchanges.WikiSSEPath
+	fullURL := wikisse.WikiSSEServer + wikisse.WikiSSEPath
 
 	done := make(chan struct{})
 

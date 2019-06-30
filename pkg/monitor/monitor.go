@@ -3,6 +3,8 @@ package monitor
 import (
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/diffs"
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges"
+
+	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges/sse"
 	"github.com/sirupsen/logrus"
 )
 
@@ -11,14 +13,14 @@ type QueueRevision = func(revision int)
 // Monitor handles recent changes as they arrive
 type Monitor struct {
 	logger     *logrus.Logger
-	stream     recentchanges.Listener
+	stream     sse.Listener
 	diffQueuer diffs.DiffQueuer
 	diffParser diffs.DiffParser
 	archiver   Archiver
 }
 
 // NewMonitor creates a handler for recent changes
-func NewMonitor(stream recentchanges.Listener, diffQueuer diffs.DiffQueuer, diffParser diffs.DiffParser, archiver Archiver, logger *logrus.Logger) Monitor {
+func NewMonitor(stream sse.Listener, diffQueuer diffs.DiffQueuer, diffParser diffs.DiffParser, archiver Archiver, logger *logrus.Logger) Monitor {
 	return Monitor{
 		logger:     logger,
 		stream:     stream,
@@ -32,14 +34,14 @@ func (m Monitor) Start(o recentchanges.ListenOptions) {
 	m.stream.Listen(o, m.handleRecentChange)
 }
 
-func (m Monitor) handleRecentChange(rc recentchanges.RecentChange, err error) {
+func (m Monitor) handleRecentChange(rc sse.RecentChange, err error) {
 	// s, _ := json.MarshalIndent(rc, "", "\t")
 	// m.logger.Println(string(s))
 	if err != nil {
 		return
 	}
 
-	if rc.LogAction == recentchanges.LogActionDelete {
+	if rc.LogAction == sse.LogActionDelete {
 		m.logger.Info("Recent change action delete noted")
 	}
 

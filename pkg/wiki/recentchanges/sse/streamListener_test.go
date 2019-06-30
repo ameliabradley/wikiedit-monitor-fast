@@ -1,9 +1,10 @@
-package recentchanges_test
+package sse_test
 
 import (
 	"testing"
 
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges"
+	wikisse "github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges/sse"
 	"github.com/r3labs/sse"
 
 	"github.com/sirupsen/logrus/hooks/test"
@@ -17,7 +18,7 @@ type inListener struct {
 
 type wantListener struct {
 	url string
-	rc  recentchanges.RecentChange
+	rc  wikisse.RecentChange
 	err error
 }
 
@@ -36,14 +37,14 @@ var parserTests = []struct {
 		},
 		want: wantListener{
 			url: "https://stream.wikimedia.org/v2/stream/recentchange?hidebots=1",
-			rc:  recentchanges.RecentChange{},
+			rc:  wikisse.RecentChange{},
 			err: nil,
 		},
 	},
 }
 
 type listenInput struct {
-	rc  recentchanges.RecentChange
+	rc  wikisse.RecentChange
 	err error
 }
 
@@ -52,10 +53,10 @@ func TestListener(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			logger, _ := test.NewNullLogger()
 			client := NewFakeSSEClient(tt.in.data, tt.in.err)
-			listener := recentchanges.NewStreamListener(client, logger)
+			listener := wikisse.NewStreamListener(client, logger)
 
 			in := make(chan listenInput)
-			listener.Listen(tt.in.lo, func(rc recentchanges.RecentChange, err error) {
+			listener.Listen(tt.in.lo, func(rc wikisse.RecentChange, err error) {
 				in <- listenInput{
 					rc:  rc,
 					err: err,

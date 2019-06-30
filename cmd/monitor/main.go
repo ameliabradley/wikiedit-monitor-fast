@@ -13,6 +13,7 @@ import (
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/monitor"
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/diffs"
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges"
+	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges/sse"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,7 +36,8 @@ func main() {
 	diffQueuer := diffs.NewDiffQueuer(logger, diffFetcher)
 
 	client := wiki.NewSSEClient()
-	streamListener := recentchanges.NewStreamListener(client, logger)
+	streamListener := sse.NewStreamListener(client, logger)
+
 	archiver := monitor.NewFileArchiver(logger, "archive")
 
 	m := monitor.NewMonitor(streamListener, diffQueuer, diffParser, archiver, logger)
