@@ -37,7 +37,7 @@ func main() {
 
 	client := wiki.NewSSEClient()
 	logger.Info("Subscribing to messages")
-	fullURL := wikisse.WikiSSEServer + wikisse.WikiSSEPath
+	fullURL := wikisse.DefaultURL
 
 	done := make(chan struct{})
 

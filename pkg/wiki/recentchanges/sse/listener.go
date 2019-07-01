@@ -1,6 +1,19 @@
 package sse
 
-// RecentChange represents a recent change on wikipedia
+import (
+	"encoding/json"
+	"strings"
+
+	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki"
+	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges"
+	"github.com/r3labs/sse"
+	"github.com/sirupsen/logrus"
+)
+
+// DefaultURL is the default URL to connect to for wikimedia SSE streams
+const DefaultURL = "https://stream.wikimedia.org/v2/stream/recentchange"
+
+// RecentChange represents a recent change on wikimedia via the SSE stream
 type RecentChange struct {
 	Meta struct {
 		//   required:
@@ -91,5 +104,96 @@ type RecentChange struct {
 	LogActionComment *string `json:"log_action_comment"`
 }
 
-// LogActionDelete is the constant returned by wikipedia for the delete action
+func (rc *RecentChange) Normalize() recentchanges.NormalizedRecentChange {
+	id := -1
+	if rc.Type == "new" && rc.ID != nil {
+		id = *rc.ID
+	}
+
+	new := -1
+	if rc.Revision.New != nil {
+		new = *rc.Revision.New
+	}
+
+	old := -1
+	if rc.Revision.Old != nil {
+		old = *rc.Revision.Old
+	}
+
+	wiki := strings.Replace(rc.Wiki, "wiki", "", 1)
+
+	return recentchanges.NormalizedRecentChange{
+		ID:      id,
+		Type:    rc.Type,
+		Title:   rc.Title,
+		Comment: rc.Comment,
+		User:    rc.User,
+		Bot:     rc.Bot,
+		Wiki:    wiki,
+		Minor:   rc.Minor,
+		Revision: recentchanges.Revision{
+			New: new,
+			Old: old,
+		},
+		Source: recentchanges.SourceSSE,
+	}
+}
+
+// LogActionDelete is the constant returned by wikimedia for the delete action
 const LogActionDelete = "delete"
+
+// Handler handles recent changes coming from a stream
+type Handler func(rc RecentChange, err error)
+
+// Listener listens to recent changes
+type Listener interface {
+	Listen(lo recentchanges.ListenOptions, handler Handler)
+}
+
+type sseListener struct {
+	logger *logrus.Logger
+	client wiki.SSEClient
+}
+
+// NewListener creates a new stream for listening to wiki changes
+func NewListener(client wiki.SSEClient, logger *logrus.Logger) Listener {
+	return &sseListener{
+		logger: logger,
+		client: client,
+	}
+}
+
+// Listen to the given wikis, with the given handler
+func (sl *sseListener) Listen(lo recentchanges.ListenOptions, handler Handler) {
+	sl.logger.WithField("url", DefaultURL).Info("Subscribing to url")
+	go sl.client.Subscribe(DefaultURL, func(event *sse.Event) {
+		rc, err := sl.handleMessage(lo.Wikis, event.Data, handler)
+		if err != nil {
+			handler(rc, err)
+		}
+
+		if rc.Bot && lo.Hidebots {
+			return
+		}
+
+		for _, wiki := range lo.Wikis {
+			if rc.Wiki == (wiki + "wiki") {
+				handler(rc, nil)
+			}
+		}
+	})
+}
+
+func (sl *sseListener) handleMessage(wikis []string, data []byte, handler Handler) (RecentChange, error) {
+	rc := RecentChange{}
+	err := json.Unmarshal(data, &rc)
+	if err != nil {
+		data := string(data[:])
+		sl.logger.WithError(err).WithFields(logrus.Fields{
+			"data": data,
+		}).Error("There was an error decoding")
+		return rc, err
+	}
+
+	return rc, nil
+}

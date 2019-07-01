@@ -52,7 +52,7 @@ func main() {
 				for _, rev := range p.Revisions {
 					hash := sha1.Sum([]byte(rev.Text.Value))
 					encoded := base36.EncodeBytes(hash[:])
-					// TODO: Instead of comparing with Wikipedia's hash
+					// TODO: Instead of comparing with Wikimedia's hash
 					// I'll want to compare with my own hash for the stream revision
 					if rev.Sha1 != encoded {
 						fmt.Printf("BAD  %s %s\n", rev.Sha1, encoded)

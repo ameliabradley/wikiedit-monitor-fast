@@ -17,7 +17,6 @@ type inListener struct {
 }
 
 type wantListener struct {
-	url string
 	rc  wikisse.RecentChange
 	err error
 }
@@ -30,14 +29,16 @@ var parserTests = []struct {
 	{
 		name: "basic",
 		in: inListener{
-			data: `{"bad":"data"}`,
+			data: `{"wiki":"enwiki"}`,
 			lo: recentchanges.ListenOptions{
 				Hidebots: true,
+				Wikis:    []string{"en"},
 			},
 		},
 		want: wantListener{
-			url: "https://stream.wikimedia.org/v2/stream/recentchange?hidebots=1",
-			rc:  wikisse.RecentChange{},
+			rc: wikisse.RecentChange{
+				Wiki: "enwiki",
+			},
 			err: nil,
 		},
 	},
@@ -53,7 +54,7 @@ func TestListener(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			logger, _ := test.NewNullLogger()
 			client := NewFakeSSEClient(tt.in.data, tt.in.err)
-			listener := wikisse.NewStreamListener(client, logger)
+			listener := wikisse.NewListener(client, logger)
 
 			in := make(chan listenInput)
 			listener.Listen(tt.in.lo, func(rc wikisse.RecentChange, err error) {
@@ -70,10 +71,6 @@ func TestListener(t *testing.T) {
 
 			if received.err != tt.want.err {
 				t.Errorf("got %+v, want %+v", received.err, tt.want.err)
-			}
-
-			if client.url != tt.want.url {
-				t.Errorf("got %q, want %q", client.url, tt.want.url)
 			}
 		})
 	}

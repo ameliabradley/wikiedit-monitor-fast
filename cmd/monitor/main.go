@@ -36,14 +36,14 @@ func main() {
 	diffQueuer := diffs.NewDiffQueuer(logger, diffFetcher)
 
 	client := wiki.NewSSEClient()
-	streamListener := sse.NewStreamListener(client, logger)
+	streamListener := sse.NewListener(client, logger)
 
 	archiver := monitor.NewFileArchiver(logger, "archive")
 
 	m := monitor.NewMonitor(streamListener, diffQueuer, diffParser, archiver, logger)
 	m.Start(recentchanges.ListenOptions{
 		Hidebots: true,
-		Wikis:    []string{"enwiki"},
+		Wikis:    []string{"en"},
 	})
 
 	done := make(chan struct{})

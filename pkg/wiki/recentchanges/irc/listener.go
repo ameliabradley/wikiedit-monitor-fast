@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/leebradley/wikiedit-monitor-fast/pkg/wiki/recentchanges"
@@ -12,14 +14,69 @@ import (
 	"gopkg.in/irc.v3"
 )
 
+// RecentChange represents a recent change on Wikimedia via the IRC stream
 type RecentChange struct {
-	Channel string
-	Page    string
-	Flags   string
-	URL     string
-	User    string
-	Diff    string
-	Comment string
+	Channel    string
+	Page       string
+	Flags      string
+	URL        string
+	User       string
+	Changesize string
+	Comment    string
+}
+
+func (rc *RecentChange) Normalize() (recentchanges.NormalizedRecentChange, error) {
+	parsedURL, err := url.Parse(rc.URL)
+	if err != nil {
+		return recentchanges.NormalizedRecentChange{}, err
+	}
+
+	query := parsedURL.Query()
+	id, err := strconv.Atoi(query.Get("rcid"))
+	if err != nil {
+		id = -1
+	}
+
+	new, err := strconv.Atoi(query.Get("diff"))
+	if err != nil {
+		new = -1
+	}
+
+	old, err := strconv.Atoi(query.Get("oldid"))
+	if err != nil {
+		old = -1
+	}
+
+	parts := strings.Split(parsedURL.Hostname(), ".")
+	wiki := parts[0]
+
+	bot := strings.Contains(rc.Flags, "B")
+	minor := strings.Contains(rc.Flags, "M")
+
+	rcType := ""
+	if strings.Contains(rc.Flags, "N") {
+		rcType = "new"
+	}
+
+	if new != -1 && old != -1 {
+		rcType = "edit"
+	}
+
+	return recentchanges.NormalizedRecentChange{
+		ID:      id,
+		Type:    rcType,
+		Title:   rc.Page,
+		Comment: rc.Comment,
+		User:    rc.User,
+		Bot:     bot,
+		Wiki:    wiki,
+		Minor:   minor,
+		Revision: recentchanges.Revision{
+			New: new,
+			Old: old,
+		},
+		Source: recentchanges.SourceIRC,
+	}, nil
 }
 
 // Handler handles recent changes coming from a stream
@@ -43,8 +100,14 @@ type Options struct {
 	Name string
 }
 
-// NewIRCListener creates a new IRC Listener
-func NewIRCListener(o Options, logger *logrus.Logger) Listener {
+// DefaultAddr is the default address to connect to via TCP
+const DefaultAddr = "irc.wikimedia.org:6667"
+
+var stripper = regexp.MustCompile(`\x1f|\x02|\x12|\x0f|\x16|\x03(?:\d{1,2}(?:,\d{1,2})?)?`)
+var parser = regexp.MustCompile(`PRIVMSG (?P<channel>#[A-Za-z.]+) :\[\[(?P<page>.+)\]\] (?P<flags>.+)? (?P<url>https:\/\/[^ ]+) \* (?P<user>.+) \* (?P<changesize>\(.+\)) ?(?P<comment>.+)?`)
+
+// NewListener creates a new IRC Listener
+func NewListener(o Options, logger *logrus.Logger) Listener {
 	return &ircListener{
 		options: o,
 		logger:  logger,
@@ -52,11 +115,10 @@ func NewIRCListener(o Options, logger *logrus.Logger) Listener {
 }
 
 func (l *ircListener) Listen(lo recentchanges.ListenOptions, handler Handler) {
-	url := "irc.wikimedia.org:6667"
 	l.logger.WithFields(logrus.Fields{
-		"url": url,
+		"url": DefaultAddr,
 	}).Info("Listening")
-	conn, err := net.Dial("tcp", url)
+	conn, err := net.Dial("tcp", DefaultAddr)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -83,8 +145,6 @@ type listenHandler struct {
 	lo       recentchanges.ListenOptions
 	handler  Handler
 	listener *ircListener
-	stripper *regexp.Regexp
-	parser   *regexp.Regexp
 }
 
 func newListenerHandler(listener *ircListener, lo recentchanges.ListenOptions, handler Handler) irc.Handler {
@@ -92,8 +152,6 @@ func newListenerHandler(listener *ircListener, lo recentchanges.ListenOptions, h
 		lo:       lo,
 		handler:  handler,
 		listener: listener,
-		stripper: regexp.MustCompile(`\x1f|\x02|\x12|\x0f|\x16|\x03(?:\d{1,2}(?:,\d{1,2})?)?`),
-		parser:   regexp.MustCompile(`PRIVMSG (?P<channel>#[A-Za-z.]+) :\[\[(?P<page>.+)\]\] (?P<flags>.+)? (?P<url>https:\/\/[^ ]+) \* (?P<user>.+) \* (?P<diff>\(.+\)) ?(?P<comment>.+)?`),
 	}
 }
 
@@ -111,7 +169,7 @@ func (l *listenHandler) Handle(c *irc.Client, m *irc.Message) {
 	}
 
 	full := m.String()
-	message := string(l.stripper.ReplaceAll([]byte(full), []byte{}))
+	message := string(stripper.ReplaceAll([]byte(full), []byte{}))
 
 	l.listener.logger.WithFields(logrus.Fields{
 		"command": m.Command,
@@ -122,15 +180,15 @@ func (l *listenHandler) Handle(c *irc.Client, m *irc.Message) {
 		return
 	}
 
-	matches := findNamedMatches(l.parser, message)
+	matches := findNamedMatches(parser, message)
 	rc := RecentChange{
-		Channel: matches["channel"],
-		Page:    matches["page"],
-		Flags:   matches["flags"],
-		URL:     matches["url"],
-		User:    matches["user"],
-		Diff:    matches["diff"],
-		Comment: matches["comment"],
+		Channel:    matches["channel"],
+		Page:       matches["page"],
+		Flags:      matches["flags"],
+		URL:        matches["url"],
+		User:       matches["user"],
+		Changesize: matches["changesize"],
+		Comment:    matches["comment"],
 	}
 
 	if rc.Page != "" {
