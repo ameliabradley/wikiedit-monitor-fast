@@ -1,5 +1,7 @@
 # wikiedit-monitor-fast [![Build Status](https://travis-ci.com/leebradley/wikiedit-monitor-fast.svg?branch=master)](https://travis-ci.com/leebradley/wikiedit-monitor-fast)
 
+[Architecture Overview](https://docs.google.com/drawings/d/1ynpj5vsn2iUQ8kZqIbga4cWliVFU075aiM4W1c6hc-4/edit?usp=sharing)
+
 This is an experiment at writing a faster and more reliable version of the [wikiedit-monitor](https://github.com/leebradley/wikiedit-monitor) project.
 
 The Wikimedia API has updated substantially since I created that project with [Barbarrosa](https://github.com/Barbarrosa)
@@ -12,5 +14,5 @@ The Wikimedia API has updated substantially since I created that project with [B
 On Jun 27th, 2019 the recent changes SSE stream was not accepting connections for multiple hours, but the IRC stream and HTTP stream appeard to work.
 
 - [ ] Add stream downtime analysis
-- [ ] Add IRC altnative stream listener
+- [x] Add IRC altnative stream listener
 - [ ] Add HTTP alternative stream listener
